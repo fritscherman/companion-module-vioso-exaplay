@@ -1,0 +1,31 @@
+# A tag v<version> (the one Bitfocus's Developer Portal asks for) also
+# attaches the importable .tgz to a GitHub release, for operators who
+# install the module by hand (Companion → Modules → Import module package).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
+      - run: npm run check
+      - name: The tag matches package.json
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: npm run package
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: vioso-exaplay-*.tgz
+          generate_release_notes: true
