@@ -10,6 +10,7 @@ const DEFAULTS = {
 	statusEnabled: true,
 	statusRate: 5,
 	switchTransport: 'tcp',
+	legacy1x: false,
 }
 
 function getConfigFields() {
@@ -48,6 +49,14 @@ function getConfigFields() {
 				{ id: 'tcp', label: 'TCP — with an answer (Exaplay 3.4 and later)' },
 				{ id: 'osc', label: 'OSC — no answer (older Exaplay)' },
 			],
+		},
+		{
+			type: 'checkbox',
+			id: 'legacy1x',
+			label: 'Buttons from module 1.x: keep its variables ($(…:playback_status_comp1) & co) and display feedbacks',
+			width: 12,
+			default: DEFAULTS.legacy1x,
+			tooltip: 'Switched on by the update from 1.x. Leave it off for a new setup — the presets and $(…:comp_<id>_…) variables replace them.',
 		},
 	]
 }

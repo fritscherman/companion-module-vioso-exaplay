@@ -19,7 +19,7 @@ function listsWord(catalog, refreshing) {
 }
 
 function getVariableDefinitions(self) {
-	return variableDefinitions(self.status, self.catalog ? self.catalog.state : undefined)
+	return variableDefinitions(self.status, self.catalog ? self.catalog.state : undefined, { legacy: !!self.config.legacy1x })
 }
 
 /**
@@ -30,7 +30,7 @@ function getVariableDefinitions(self) {
 function getVariableValues(self) {
 	const catalog = self.catalog ? self.catalog.state : undefined
 	return {
-		...variableValues(self.status, { catalog, levels: self.levels, selected: self.selected }),
+		...variableValues(self.status, { catalog, levels: self.levels, selected: self.selected, legacy: !!self.config.legacy1x }),
 		connection: connectionWord(self.tcpState, self.statusState, self.config.statusEnabled),
 		tcp_state: self.tcpState,
 		status_state: self.config.statusEnabled ? self.statusState : 'off',

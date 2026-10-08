@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.0.0 - 2026-10-08
+
+Still unit-tested only — not yet run inside Companion or against an engine.
+
+- **The update of the module already on Companion's list.** `vioso-exaplay`
+  1.x (TCP polling) becomes this module: an upgrade script moves a 1.x
+  connection's config, actions and feedbacks to their 2.0 equivalents
+  (`1` still means `comp1`), keeps the five 1.x display feedbacks under their
+  ids and, while the new **Buttons from module 1.x** setting is on (switched
+  on by the upgrade only), the 1.x variables `playback_status_<id>`,
+  `current_time_<id>`, `frame_index_<id>`, `cue_index_<id>`,
+  `clip_index_<id>`, `composition_duration_<id>`, `current_volume_<id>`.
+  Unknown reads `?`, never 1.x's `0`.
+- **Keys in the Exaplay look.** Every preset wears the outlined square and
+  glyph of Produce & Play's transport buttons on the Exaplay page tone; a
+  state lights the outline and glyph in its colour (playing green, paused
+  amber, stopped red, show mode blue), Blank and Audio mute fill solid red.
+  The faces are drawn in code (no image asset). Feedback default colours
+  follow the Exaplay palette.
+- **In the Exaplay installer:** `deploy.bat` / `nightly_build.bat` build the
+  package and the installer puts `vioso-exaplay-<version>.tgz` in
+  `integrations\companion\`.
+- Needs **Companion 4.2** or later (module API 1.14) — the earlier notes said
+  3.x, which was wrong.
+
 ## 1.3.0 - 2026-10-08
 
 Still unit-tested only — not yet run inside Companion or against an engine.

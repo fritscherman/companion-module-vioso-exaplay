@@ -21,7 +21,8 @@
 const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-module/base')
 const { getConfigFields, withDefaults } = require('./config')
 const { getActionDefinitions } = require('./actions')
-const { getFeedbackDefinitions } = require('./feedbacks')
+const { getFeedbackDefinitions, legacyFeedbackDefinitions } = require('./feedbacks')
+const { upgradeScripts } = require('./upgrades')
 const { getPresetDefinitions } = require('./presets')
 const { getVariableDefinitions, getVariableValues, listsWord } = require('./variables')
 const { TcpClient } = require('./lib/tcp-client')
@@ -289,13 +290,17 @@ class ExaplayInstance extends InstanceBase {
 		if (sig === this.signature) return
 		this.signature = sig
 		this.setActionDefinitions(getActionDefinitions(this))
-		this.setFeedbackDefinitions(getFeedbackDefinitions(this))
+		this.setFeedbackDefinitions({ ...getFeedbackDefinitions(this), ...(this.config.legacy1x ? legacyFeedbackDefinitions(this) : {}) })
 		this.setVariableDefinitions(getVariableDefinitions(this))
 		this.setPresetDefinitions(getPresetDefinitions(this))
 	}
 
 	definitionSignature() {
-		return JSON.stringify([allCompositions(this.status, this.catalog.state).map((c) => [c.id, c.name, c.type]), catalogSignature(this.catalog.state)])
+		return JSON.stringify([
+			allCompositions(this.status, this.catalog.state).map((c) => [c.id, c.name, c.type]),
+			catalogSignature(this.catalog.state),
+			!!this.config.legacy1x,
+		])
 	}
 
 	defineAll() {
@@ -578,6 +583,6 @@ class ExaplayInstance extends InstanceBase {
 	}
 }
 
-runEntrypoint(ExaplayInstance, [])
+runEntrypoint(ExaplayInstance, upgradeScripts)
 
 module.exports = { ExaplayInstance }

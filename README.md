@@ -4,7 +4,7 @@
 > repository is its standalone copy for Bitfocus's module list. Change it
 > there first, or keep both in step.
 
-# Bitfocus Companion module — v1.3.0
+# Bitfocus Companion module — v2.0.0
 
 **Validation: unit-tested; not run inside Companion or against an engine.**
 The command builders, the reply and cue-list parsers, the status reducer, the
@@ -19,7 +19,7 @@ silent, the engine source — that is a reading, not a test. See
 [`compatibility.json`](compatibility.json) and the commissioning checklist
 below.
 
-A module for [Bitfocus Companion](https://bitfocus.io/companion) 3.x (module
+A module for [Bitfocus Companion](https://bitfocus.io/companion) 4.2 and later (module
 API `@companion-module/base` 1.14, runtime `node22`, plain CommonJS) that puts
 Exaplay on a Stream Deck: composition transport, cue lists with one key per
 cue, command buttons, Stream Deck+ dials for volume / opacity / seek / cue
@@ -31,7 +31,9 @@ on the keys. The operator-facing help is [`companion/HELP.md`](companion/HELP.md
 
 ### A — import the package (Companion 4, recommended)
 
-1. Get `vioso-exaplay-<version>.tgz`: from the **companion-module-vioso-exaplay**
+1. Get `vioso-exaplay-<version>.tgz`: the Exaplay installer puts it in
+   `C:\Program Files\Exaplay 3\integrations\companion\` (Start menu →
+   *Show-control integrations*); it is also the **companion-module-vioso-exaplay**
    artifact of the *Integrations tests* CI run, or build it yourself
    (`npm ci` then `npm run package` in this folder, Node 22).
 2. In Companion: **Modules** → **Import module package** → choose the `.tgz`.
@@ -55,8 +57,32 @@ dependencies.
    restart Companion.
 
 The module is built against `@companion-module/base` 1.14 with the `node22`
-runtime, i.e. Companion 4.x — as far as the Companion release notes go; it has
-not yet been loaded into a running Companion.
+runtime, i.e. Companion 4.2 and later (Bitfocus's API table: module API 1.14 →
+Companion 4.2+) — as far as that table goes; it has not yet been loaded into a
+running Companion. Companion 3.x keeps the module's 1.x.
+
+### Updating from the 1.x module
+
+Companion's module list already carries `vioso-exaplay` 1.x (TCP polling of
+`get:status`). 2.0.0 is a rewrite under the same id, so an operator gets it as
+an ordinary update, and `src/upgrades.js` carries their buttons across once:
+
+| 1.x | 2.0 |
+|---|---|
+| config `port` | `tcpPort` (`prot`, `pollingInterval`, `saveresponse` dropped) |
+| *transportmode* play / pause / stop | *Composition: play / pause / stop* |
+| *set_cue* | *Cue: go* |
+| *volume* / *volume_adjust* (±10) | *set volume* / *nudge volume* (±10) |
+| *jump_to_time* | *Composition: jump to a time* |
+| *Transport Mode Feedback* | *Composition: state is …* (`stop` → Stopped) |
+| *Cue/Clip Active Feedback* | *Cue: is the current cue* |
+| the five display feedbacks | kept under their ids, marked **(1.x)** |
+| `$(…:playback_status_comp1)` & co | kept while **Buttons from module 1.x** is on |
+
+The old composition field took `1` for `comp1`; the script keeps that and
+writes the result into the text field, which wins over the list. It switches
+**Buttons from module 1.x** on for a migrated connection only; a new one has
+it off. Never delete an upgrade script: Companion counts them per connection.
 
 ### Publishing in Companion's module list
 

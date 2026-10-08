@@ -16,6 +16,8 @@ with live status on the buttons.
 | OSC prefix | `exaplay` | Exaplay → Settings → Communication → **OSC Prefix**. |
 | Use the status feed | on | Off = commands only; feedbacks stay unlit and status variables read `?`. |
 | Status rate | 5 | Status messages per second, 1–20. |
+| Blank, Audio mute, Identify, Play all over | TCP | OSC for an engine older than 3.4. |
+| Buttons from module 1.x | off | Keeps the 1.x variables and display feedbacks — see below. |
 
 The firewall on the Exaplay machine must let in TCP 8100, TCP 8123 and UDP 8000.
 For several Exaplay engines, add one connection per engine.
@@ -164,3 +166,22 @@ Play, Pause, Stop, Play/pause with time, Previous, Next, current cue with
 countdown, remaining time, next cue, seek −10 s / +10 s, back to the start.
 *Cues: <composition>*, *Command buttons*, *Dials: <composition>* and
 *Dials: engine* as above.
+
+The presets wear the **Exaplay look**: the outlined square of Produce &
+Play's transport buttons with a glyph, the caption underneath. A state lights
+the outline and glyph in its colour — playing green, paused amber, stopped
+red, Show mode blue, a running command button amber — and Blank and Audio
+mute fill the key solid red, as the Exaplay UI does.
+
+### Updating from module 1.x
+
+Buttons made with the earlier module (1.x) are moved over by Companion when
+it updates the module: play / pause / stop, *set cue*, volume, volume ±,
+*jump to time*, the transport-mode and cue-active feedbacks. A 1.x
+composition number such as `1` still means `comp1`. The five 1.x display
+feedbacks stay, marked **(1.x)**, and **Buttons from module 1.x** (switched
+on by the update) keeps the 1.x variables `playback_status_comp1`,
+`current_time_…`, `frame_index_…`, `cue_index_…`, `clip_index_…`,
+`composition_duration_…`, `current_volume_…`. For new buttons use the
+presets and the `comp_<id>_…` variables; once no button uses the old ones,
+switch the setting off.

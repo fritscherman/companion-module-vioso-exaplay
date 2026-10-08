@@ -256,7 +256,41 @@ const COMP_VARS = [
  * Variable definitions for the current list. Fixed ones always; per
  * composition ones for every composition the feed or the catalog reported.
  */
-function variableDefinitions(state, catalog) {
+/**
+ * The 1.x module's per-composition variables (before 2.0.0), kept for the
+ * buttons made with it while "Buttons from module 1.x" is on: same names
+ * (`playback_status_comp1`, with the composition id as it was typed with its
+ * "comp" prefix), same words (playing / paused / stop), values in seconds.
+ * Unknown is "?", never the 1.x placeholder "0" — the feed did not say.
+ */
+const LEGACY_VARS = [
+	['playback_status', 'Playback Status'],
+	['current_time', 'Current Time'],
+	['frame_index', 'Frame Index'],
+	['cue_index', 'Cue Index'],
+	['clip_index', 'Clip Index'],
+	['composition_duration', 'Composition Duration'],
+	['current_volume', 'Current Volume'],
+]
+const LEGACY_FPS = 60 // 1.x reported frames at the engine's 60 Hz cue clock
+
+function legacyValues(c, meta, level) {
+	const known = !!c
+	const time = known && typeof c.time === 'number' ? c.time : undefined
+	const cueIdx = known && c.cue !== undefined ? (c.cue === null ? NONE : c.cue.index === undefined ? UNKNOWN : String(c.cue.index)) : UNKNOWN
+	const type = (c && c.type) || meta.type
+	return {
+		playback_status: !known || c.state === undefined ? UNKNOWN : c.state === 'stopped' ? 'stop' : c.state,
+		current_time: time === undefined ? UNKNOWN : String(Math.round(time * 1000) / 1000),
+		frame_index: time === undefined ? UNKNOWN : String(Math.floor(time * LEGACY_FPS + 1e-6)),
+		cue_index: cueIdx,
+		clip_index: type === 'playlist' ? cueIdx : NONE,
+		composition_duration: known && typeof c.duration === 'number' ? String(Math.round(c.duration * 1000) / 1000) : UNKNOWN,
+		current_volume: fmtNum(level && level.volume),
+	}
+}
+
+function variableDefinitions(state, catalog, opts = {}) {
 	const defs = [
 		{ variableId: 'connection', name: 'Connection: TCP commands and status feed (ok / partial / disconnected)' },
 		{ variableId: 'tcp_state', name: 'TCP command link (connected / connecting / disconnected)' },
@@ -285,6 +319,7 @@ function variableDefinitions(state, catalog) {
 		const k = `comp_${varKey(c.id)}`
 		const label = c.name ? `${c.name} (${c.id})` : c.id
 		for (const [suffix, what] of COMP_VARS) defs.push({ variableId: `${k}_${suffix}`, name: `${label}: ${what}` })
+		if (opts.legacy) for (const [name, what] of LEGACY_VARS) defs.push({ variableId: `${name}_${varKey(c.id)}`, name: `(1.x) ${what} ${c.id}` })
 	}
 	return defs
 }
@@ -360,6 +395,7 @@ function variableValues(state, ctx = {}) {
 		const lv = levels[meta.id] || {}
 		v[`${k}_volume`] = fmtNum(lv.volume)
 		v[`${k}_opacity`] = fmtNum(lv.opacity)
+		if (ctx.legacy) for (const [name, value] of Object.entries(legacyValues(c, meta, lv))) v[`${name}_${varKey(meta.id)}`] = value
 	}
 	return v
 }
@@ -375,6 +411,7 @@ function staleVariableValues(prevState, nextState, prevCatalog, nextCatalog) {
 		const key = varKey(c.id)
 		if (keep.has(key)) continue
 		for (const [suffix] of COMP_VARS) out[`comp_${key}_${suffix}`] = UNKNOWN
+		for (const [name] of LEGACY_VARS) out[`${name}_${key}`] = UNKNOWN
 	}
 	return out
 }
@@ -404,4 +441,5 @@ module.exports = {
 	remainingOf,
 	progressOf,
 	COMP_VARS,
+	LEGACY_VARS,
 }

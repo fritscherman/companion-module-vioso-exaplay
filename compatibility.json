@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "integration": "companion",
   "displayName": "Bitfocus Companion module",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "artifacts": [
     { "file": "companion/manifest.json", "kind": "companion-module", "moduleId": "vioso-exaplay" }
   ],
@@ -77,17 +77,20 @@
       "tests/status-client.test.js - status client against a local mock ws server (rate request, heartbeat, 15 s silence, 404)",
       "tests/http.test.js - command button, stop all, pjlink-all, master volume, Inputs groups against a local HTTP server",
       "tests/main.test.js - the instance wiring with a recording stand-in for InstanceBase, against mock TCP/HTTP/ws servers (refresh triggers, project load, button refusal, cue dial, two instances)",
-      "tests/definitions.test.js - manifest validated by @companion-module/base; presets (incl. rotary) reference real actions/feedbacks/options and defined variables"
+      "tests/definitions.test.js - manifest validated by @companion-module/base; presets (incl. rotary) reference real actions/feedbacks/options and defined variables",
+      "tests/upgrades.test.js - the 1.x -> 2.0 upgrade script (config, actions, feedbacks) lands on real 2.0 definitions; the 1.x variables and display feedbacks",
+      "tests/icons.test.js - the Exaplay key faces are valid PNGs (signature, CRC, size), cached, and every preset face is one"
     ],
     "notVerified": [
       "loading and running inside Bitfocus Companion (developer module or packaged)",
       "Stream Deck+ rotary presets on real hardware",
       "traffic against a real Exaplay engine",
       "the /status feed of a real engine, including the `duration` key",
-      "listing in the Bitfocus module store"
+      "listing in the Bitfocus module store",
+      "the 1.x -> 2.0 upgrade inside a running Companion with a real 1.2.3 configuration"
     ],
     "targets": [
-      "Bitfocus Companion 4.x (module API @companion-module/base ~1.14, runtime node22)"
+      "Bitfocus Companion 4.2 and later (module API @companion-module/base ~1.14, runtime node22)"
     ]
   },
   "sampleProject": {

@@ -1,21 +1,27 @@
 'use strict'
-const { combineRgb } = require('@companion-module/base')
 const { findComposition, remainingOf, progressOf, buttonRunning } = require('./lib/status')
 const { isCurrentCue, isNextCue } = require('./lib/cues')
 const { buttonChoices } = require('./lib/catalog')
 const { compositionOptions, resolveComposition, parsedText } = require('./options')
+const { EXA, mix, rgb } = require('./lib/icons')
+const { legacyCompId } = require('./upgrades')
 
+/**
+ * Default feedback colours, from the Exaplay palette (lib/icons.js EXA):
+ * a state is a dark tint of its status colour on the page tone, a warning
+ * to the room (red) the solid fill the UI uses for BLANKED / MUTED.
+ */
 const COLORS = {
-	white: combineRgb(255, 255, 255),
-	black: combineRgb(0, 0, 0),
-	green: combineRgb(0, 160, 60),
-	darkGreen: combineRgb(0, 70, 30),
-	amber: combineRgb(220, 140, 0),
-	darkAmber: combineRgb(90, 60, 0),
-	red: combineRgb(200, 0, 0),
-	blue: combineRgb(0, 90, 200),
-	purple: combineRgb(110, 50, 160),
-	grey: combineRgb(70, 70, 70),
+	white: rgb(EXA.text),
+	black: rgb(EXA.page),
+	green: rgb(mix(EXA.page, EXA.ok, 0.45)),
+	darkGreen: rgb(mix(EXA.page, EXA.ok, 0.2)),
+	amber: rgb(EXA.warn),
+	darkAmber: rgb(mix(EXA.page, EXA.warn, 0.25)),
+	red: rgb(EXA.errorFill),
+	blue: rgb(mix(EXA.page, EXA.accent, 0.45)),
+	purple: rgb(mix(EXA.page, EXA.purple, 0.4)),
+	grey: rgb(EXA.raised),
 }
 
 /**
@@ -244,4 +250,68 @@ function getFeedbackDefinitions(self) {
 	}
 }
 
-module.exports = { getFeedbackDefinitions, COLORS }
+/**
+ * The display feedbacks of the 1.x module (before 2.0.0), kept under their
+ * old ids so a button made with them still draws after the update (see
+ * upgrades.js). They set the key's text to the legacy variables
+ * ($(…:cue_index_comp1) & co, on while "Legacy variables" is), exactly as
+ * they did. New buttons use the presets and the comp_* variables instead.
+ */
+function legacyFeedbackDefinitions(self) {
+	const L = () => self.label
+	const compField = { type: 'textinput', label: 'Composition ID (e.g. "1" or "comp1")', id: 'composition_id', default: 'comp1' }
+	const colours = (bg) => [
+		{ type: 'colorpicker', label: 'Background colour', id: 'bgcolor', default: bg },
+		{ type: 'colorpicker', label: 'Text colour', id: 'color', default: rgb(EXA.text) },
+	]
+	const style = (fb, text) => ({ bgcolor: fb.options.bgcolor, color: fb.options.color, text })
+	const compOf = (fb) => {
+		const id = legacyCompId(fb.options.composition_id)
+		return { id, comp: findComposition(self.status, id) }
+	}
+	const display = (name, what, varName, known) => ({
+		type: 'advanced',
+		name: `(1.x) ${name}`,
+		description: 'From the module before 2.0.0 — kept so existing buttons keep working.',
+		options: [compField, ...colours(rgb(EXA.card))],
+		callback: (fb) => {
+			const { id, comp } = compOf(fb)
+			if (!known(comp, id)) return {}
+			return style(fb, `${what} ${id}\n$(${L()}:${varName}_${id})`)
+		},
+	})
+	return {
+		cueIndexDisplayFeedback: display('Cue/Clip index display', 'Cue/Clip Index', 'cue_index', (c) => !!c && c.cue !== undefined),
+		volumeDisplayFeedback: display('Volume display', 'Volume', 'current_volume', (_c, id) => !!self.levels[id] && typeof self.levels[id].volume === 'number'),
+		frameIndexDisplayFeedback: display('Frame index display', 'Frame Index', 'frame_index', (c) => !!c && typeof c.time === 'number'),
+		currentTimeFeedback: {
+			type: 'advanced',
+			name: '(1.x) Current time from … seconds on',
+			description: 'From the module before 2.0.0 — kept so existing buttons keep working.',
+			options: [compField, { type: 'number', label: 'Time in seconds', id: 'time', default: 0, min: 0, max: 86400, step: 0.1 }, ...colours(rgb(EXA.card))],
+			callback: (fb) => {
+				const { id, comp } = compOf(fb)
+				const t = Number(fb.options.time)
+				if (!comp || typeof comp.time !== 'number' || !(comp.time >= (Number.isFinite(t) ? t : 0))) return {}
+				return style(fb, `Time ${id}\n$(${L()}:current_time_${id})`)
+			},
+		},
+		combinedInfoFeedback: {
+			type: 'advanced',
+			name: '(1.x) Combined info',
+			description: 'From the module before 2.0.0 — kept so existing buttons keep working.',
+			options: [compField, ...colours(rgb(EXA.card))],
+			callback: (fb) => {
+				const { id } = compOf(fb)
+				const v = (n) => `$(${L()}:${n}_${id})`
+				return style(
+					fb,
+					`Transport: ${v('playback_status')}\nVolume: ${v('current_volume')}\nClip Index: ${v('clip_index')}\n` +
+						`Cue Index: ${v('cue_index')}\nTime: ${v('current_time')}\nFrame: ${v('frame_index')}\nDuration: ${v('composition_duration')}`,
+				)
+			},
+		},
+	}
+}
+
+module.exports = { getFeedbackDefinitions, legacyFeedbackDefinitions, COLORS }

@@ -1,14 +1,45 @@
 'use strict'
-const { COLORS } = require('./feedbacks')
 const { varKey, allCompositions } = require('./lib/status')
 const { orderedCues } = require('./lib/cues')
+const { EXA, face, mix, rgb } = require('./lib/icons')
+
+/**
+ * The Exaplay look (lib/icons.js): a key is the page tone with an outlined
+ * square and a glyph; a state lights the outline and glyph in its colour on a
+ * dark tint of it, and a state that is a WARNING to the room (Blank, Audio
+ * mute) fills solid, like Produce & Play's active BLANKED / MUTED.
+ */
+const TONE = { ok: EXA.ok, warn: EXA.warn, error: EXA.error, accent: EXA.accent, purple: EXA.purple, muted: EXA.muted }
+
+/** Idle face of a key: glyph (or '' for frame only) and caption underneath. */
+function look(glyph, { centered = false, glyphColor = EXA.text, frame = EXA.lineStrong, ...style } = {}) {
+	return {
+		size: glyph && !centered ? '14' : 'auto',
+		color: rgb(EXA.text),
+		bgcolor: rgb(EXA.page),
+		png64: face(glyph, { color: glyphColor, frame, center: centered }),
+		pngalignment: 'center:center',
+		alignment: glyph && !centered ? 'center:bottom' : 'center:center',
+		...style,
+	}
+}
+
+/** A lit state: outline and glyph in the tone, on a dark tint of it. */
+function lit(glyph, tone) {
+	return { bgcolor: rgb(mix(EXA.page, tone, 0.3)), color: rgb(EXA.text), png64: face(glyph, { color: tone, frame: tone }) }
+}
+
+/** A solid state (Blank on, Audio mute on): filled, white glyph, no outline. */
+function solid(glyph, fill) {
+	return { bgcolor: rgb(fill), color: rgb(EXA.text), png64: face(glyph, { color: EXA.text, frame: null }) }
+}
 
 function button(category, name, text, down, feedbacks = [], style = {}, extra = {}) {
 	return {
 		type: 'button',
 		category,
 		name,
-		style: { text, size: 'auto', color: COLORS.white, bgcolor: COLORS.black, ...style },
+		style: { text, ...look(''), ...style },
 		steps: [{ down, up: [], ...(extra.steps || {}) }],
 		feedbacks,
 		...(extra.options ? { options: extra.options } : {}),
@@ -47,43 +78,33 @@ function getPresetDefinitions(self) {
 	const v = (id) => `$(${L}:${id})`
 	const presets = {}
 	const cat = self.catalog.state
+	const lost = fb('connection_lost', { blink: true }, solid('link', EXA.errorFill))
 
 	/* ------------------------------------------------------------ Show --- */
 	const S = 'Show'
-	presets.blank = button(S, 'Blank toggle', 'BLANK', [act('blank', { mode: 'toggle', fade: '' })], [
-		fb('blank', {}, { bgcolor: COLORS.red, color: COLORS.white }),
-	])
-	presets.show_mode = button(S, 'Show mode toggle', 'SHOW\\nMODE', [act('show_mode', { mode: 'toggle' })], [
-		fb('show_mode', {}, { bgcolor: COLORS.blue, color: COLORS.white }),
-	])
-	presets.stop_all = button(S, 'Stop all', 'STOP\\nALL', [act('stop_all')], [], { bgcolor: COLORS.red })
-	presets.play_all = button(S, 'Play all', 'PLAY\\nALL', [act('play_all')], [], { bgcolor: COLORS.green })
-	presets.audio_mute = button(S, 'Audio mute toggle', 'AUDIO\\nMUTE', [act('audio_mute', { mode: 'toggle' })], [
-		fb('audio_mute', {}, { bgcolor: COLORS.red, color: COLORS.white }),
-	])
-	presets.identify = button(S, 'Identify toggle', 'IDENTIFY', [act('identify', { mode: 'toggle' })], [
-		fb('identify', {}, { bgcolor: COLORS.amber, color: COLORS.black }),
-	])
-	presets.outlines = button(S, 'Outlines toggle', 'OUTLINES', [act('outlines', { mode: 'toggle' })], [
-		fb('outlines', {}, { bgcolor: COLORS.amber, color: COLORS.black }),
-	])
-	presets.correction_bypass = button(S, 'Correction bypass (raw wall) toggle', 'RAW\\nWALL', [act('correction_bypass', { mode: 'toggle' })], [
-		fb('correction_bypass', {}, { bgcolor: COLORS.amber, color: COLORS.black }),
-	])
-	presets.projectors_on = button(S, 'Projectors: all on', 'PROJ\\nON', [act('pjlink_all', { power: 'on' })])
-	presets.projectors_off = button(S, 'Projectors: all off', 'PROJ\\nOFF', [act('pjlink_all', { power: 'off' })])
-	presets.page_prev = button(S, 'Spaces: previous page', '◀ PAGE\\n' + v('show_page'), [act('show_page', { page: 'prev' })], [], { size: '14' })
-	presets.page_next = button(S, 'Spaces: next page', 'PAGE ▶\\n' + v('show_page'), [act('show_page', { page: 'next' })], [], { size: '14' })
+	/** A rig-wide switch: glyph, caption, lit while the engine says it is on. */
+	const toggle = (id, name, glyph, caption, onStyle, action = act(id, { mode: 'toggle' })) =>
+		button(S, name, caption, [action], [fb(id, {}, onStyle)], look(glyph))
+	presets.blank = toggle('blank', 'Blank toggle', 'blank', 'BLANK', solid('blank', EXA.errorFill), act('blank', { mode: 'toggle', fade: '' }))
+	presets.show_mode = toggle('show_mode', 'Show mode toggle', 'showmode', 'SHOW MODE', lit('showmode', TONE.accent))
+	presets.audio_mute = toggle('audio_mute', 'Audio mute toggle', 'mute', 'AUDIO MUTE', solid('mute', EXA.errorFill))
+	presets.identify = toggle('identify', 'Identify toggle', 'identify', 'IDENTIFY', lit('identify', TONE.warn))
+	presets.outlines = toggle('outlines', 'Outlines toggle', 'outlines', 'OUTLINES', lit('outlines', TONE.warn))
+	presets.correction_bypass = toggle('correction_bypass', 'Correction bypass (raw wall) toggle', 'rawwall', 'RAW WALL', lit('rawwall', TONE.warn))
+	presets.stop_all = button(S, 'Stop all', 'STOP ALL', [act('stop_all')], [], look('stopAll', { glyphColor: EXA.error, frame: EXA.error }))
+	presets.play_all = button(S, 'Play all', 'PLAY ALL', [act('play_all')], [], look('playAll', { glyphColor: EXA.ok, frame: EXA.ok }))
+	presets.projectors_on = button(S, 'Projectors: all on', 'PROJ ON', [act('pjlink_all', { power: 'on' })], [], look('projector', { glyphColor: EXA.ok }))
+	presets.projectors_off = button(S, 'Projectors: all off', 'PROJ OFF', [act('pjlink_all', { power: 'off' })], [], look('projector', { glyphColor: EXA.muted }))
+	presets.page_prev = button(S, 'Spaces: previous page', v('show_page'), [act('show_page', { page: 'prev' })], [], look('pagePrev'))
+	presets.page_next = button(S, 'Spaces: next page', v('show_page'), [act('show_page', { page: 'next' })], [], look('pageNext'))
 	presets.connection = button(S, 'Connection / project (flashes red when lost)', `${v('connection')}\\n${v('project_name')}`, [], [
-		fb('connected', { link: 'both' }, { bgcolor: COLORS.green, color: COLORS.white }),
-		fb('loading', {}, { bgcolor: COLORS.amber, color: COLORS.black }),
-		fb('connection_lost', { blink: true }, { bgcolor: COLORS.red, color: COLORS.white }),
-	], { size: '7' })
-	presets.refresh_lists = button(S, 'Refresh cue lists and command buttons', `REFRESH\\n${v('lists_state')}`, [act('refresh_lists')], [], { size: '7' })
-	presets.resync = button(S, 'Re-sync (reconnect, re-read)', 'RE-SYNC', [act('resync')], [
-		fb('connection_lost', { blink: true }, { bgcolor: COLORS.red, color: COLORS.white }),
-	])
-	presets.last_error = button(S, 'Last error (press to clear)', `${v('last_error')}`, [act('clear_error')], [], { size: '7' })
+		fb('connected', { link: 'both' }, lit('link', TONE.ok)),
+		fb('loading', {}, lit('link', TONE.warn)),
+		lost,
+	], look('link', { size: '7' }))
+	presets.refresh_lists = button(S, 'Refresh cue lists and command buttons', `REFRESH\\n${v('lists_state')}`, [act('refresh_lists')], [], look('refresh', { size: '7' }))
+	presets.resync = button(S, 'Re-sync (reconnect, re-read)', 'RE-SYNC', [act('resync')], [lost], look('refresh'))
+	presets.last_error = button(S, 'Last error (press to clear)', `${v('last_error')}`, [act('clear_error')], [], look('warning', { size: '7', glyphColor: EXA.warn }))
 
 	/* ------------------------------------------- per composition folders --- */
 	for (const c of allCompositions(self.status, cat)) {
@@ -92,38 +113,41 @@ function getPresetDefinitions(self) {
 		const T = `Transport: ${c.name || c.id}`
 		const o = { comp: c.id, compText: '' }
 		const st = (state, style) => fb('comp_state', { ...o, state }, style)
-		const unknown = fb('comp_unknown', o, { bgcolor: COLORS.grey, color: COLORS.white })
+		const unknown = (glyph) => fb('comp_unknown', o, { color: rgb(EXA.muted), png64: face(glyph, { color: EXA.muted, frame: EXA.line }) })
+		const key = (id, label, glyph, caption, down, feedbacks = [], style = {}) => {
+			presets[`${k}_${id}`] = button(T, label, caption, down, feedbacks, look(glyph, style))
+		}
 
-		presets[`${k}_play`] = button(T, 'Play', `▶\\n${name}`, [act('comp_play', o)], [st('playing', { bgcolor: COLORS.green, color: COLORS.white })])
-		presets[`${k}_pause`] = button(T, 'Pause', `❚❚\\n${name}`, [act('comp_pause', o)], [st('paused', { bgcolor: COLORS.amber, color: COLORS.black })])
-		presets[`${k}_stop`] = button(T, 'Stop', `■\\n${name}`, [act('comp_stop', o)], [st('stopped', { bgcolor: COLORS.red, color: COLORS.white })])
-		presets[`${k}_toggle`] = button(T, 'Play/pause toggle', `${name}\\n${v(`${k}_time`)}`, [act('comp_toggle', o)], [
-			st('playing', { bgcolor: COLORS.green, color: COLORS.white }),
-			st('paused', { bgcolor: COLORS.amber, color: COLORS.black }),
-			unknown,
-		], { size: '14' })
-		presets[`${k}_prev`] = button(T, 'Previous', `⏮\\n${name}`, [act('comp_previous', o)])
-		presets[`${k}_next`] = button(T, 'Next', `⏭\\n${name}`, [act('comp_next', o)])
+		key('play', 'Play', 'play', name, [act('comp_play', o)], [st('playing', lit('play', TONE.ok)), unknown('play')])
+		key('pause', 'Pause', 'pause', name, [act('comp_pause', o)], [st('paused', lit('pause', TONE.warn)), unknown('pause')])
+		key('stop', 'Stop', 'stop', name, [act('comp_stop', o)], [st('stopped', lit('stop', TONE.error)), unknown('stop')])
+		key('toggle', 'Play/pause toggle', 'toggle', `${name}\\n${v(`${k}_time`)}`, [act('comp_toggle', o)], [
+			st('playing', lit('toggle', TONE.ok)),
+			st('paused', lit('toggle', TONE.warn)),
+			unknown('toggle'),
+		], { size: '7' })
+		key('prev', 'Previous', 'prev', name, [act('comp_previous', o)])
+		key('next', 'Next', 'next', name, [act('comp_next', o)])
 		const countdown = c.type === 'playlist' ? v(`${k}_item_remaining`) : v(`${k}_next_cue_in`)
-		presets[`${k}_cue`] = button(T, 'Current cue and countdown', `${v(`${k}_cue_name`)}\\n${countdown}`, [], [
-			st('playing', { bgcolor: COLORS.green, color: COLORS.white }),
-			unknown,
-		], { size: '14' })
-		presets[`${k}_remaining`] = button(T, 'Remaining time (colour by time left)', `${name}\\n-${v(`${k}_remaining_mmss`)}\\n${v(`${k}_progress_bar`)}`, [], [
+		key('cue', 'Current cue and countdown', 'go', `${v(`${k}_cue_name`)}\\n${countdown}`, [], [
+			st('playing', lit('go', TONE.ok)),
+			unknown('go'),
+		], { size: '7' })
+		key('remaining', 'Remaining time (colour by time left)', 'clock', `-${v(`${k}_remaining_mmss`)}\\n${v(`${k}_progress_bar`)}`, [], [
 			fb('comp_progress', { ...o, warn: 30, critical: 10 }),
-			fb('comp_remaining_below', { ...o, seconds: 10, playingOnly: true }, { bgcolor: COLORS.red, color: COLORS.white }),
-		], { size: '14' })
-		presets[`${k}_next_cue_info`] = button(T, 'Next cue and countdown', `NEXT\\n${v(`${k}_next_cue_name`)}\\n${v(`${k}_next_cue_in`)}`, [], [], { size: '14' })
-		presets[`${k}_seek_back`] = button(T, 'Seek −10 s', `⏪ 10s\\n${name}`, [act('comp_seek_relative', { ...o, delta: -10 })])
-		presets[`${k}_seek_fwd`] = button(T, 'Seek +10 s', `10s ⏩\\n${name}`, [act('comp_seek_relative', { ...o, delta: 10 })])
-		presets[`${k}_restart`] = button(T, 'Back to the start', `⏮ 0:00\\n${name}`, [act('comp_seek', { ...o, time: '0' })])
+			fb('comp_remaining_below', { ...o, seconds: 10, playingOnly: true }, solid('clock', EXA.errorFill)),
+		], { size: '7' })
+		key('next_cue_info', 'Next cue and countdown', 'next', `NEXT ${v(`${k}_next_cue_name`)}\\n${v(`${k}_next_cue_in`)}`, [], [], { size: '7' })
+		key('seek_back', 'Seek −10 s', 'rewind', `-10s ${name}`, [act('comp_seek_relative', { ...o, delta: -10 })])
+		key('seek_fwd', 'Seek +10 s', 'forward', `+10s ${name}`, [act('comp_seek_relative', { ...o, delta: 10 })])
+		key('restart', 'Back to the start', 'restart', `0:00 ${name}`, [act('comp_seek', { ...o, time: '0' })])
 
 		/* ---- cues ---- */
 		const entry = (cat.comps || []).find((e) => e.id === c.id)
 		const cues = orderedCues(entry)
 		if (cues && cues.length) {
 			const C = `Cues: ${c.name || c.id}`
-			presets[`${k}_cue_next_info`] = button(C, 'Next cue', `NEXT\\n${v(`${k}_next_cue_name`)}\\n${v(`${k}_next_cue_in`)}`, [], [], { size: '14' })
+			presets[`${k}_cue_next_info`] = button(C, 'Next cue', `NEXT ${v(`${k}_next_cue_name`)}\\n${v(`${k}_next_cue_in`)}`, [], [], look('next', { size: '7' }))
 			for (const q of cues) {
 				const co = { ...o, cue: String(q.index) }
 				presets[`${k}_cue_${varKey(q.index)}`] = button(
@@ -132,45 +156,47 @@ function getPresetDefinitions(self) {
 					`${q.index}\\n${literal(q.name || '(unnamed)')}`,
 					[act('cue_go', co)],
 					[
-						fb('cue_next', co, { bgcolor: COLORS.darkAmber, color: COLORS.white }),
-						fb('cue_current', co, { bgcolor: COLORS.green, color: COLORS.white }),
+						fb('cue_next', co, { bgcolor: rgb(mix(EXA.page, EXA.warn, 0.15)), png64: face('', { frame: EXA.warn }) }),
+						fb('cue_current', co, lit('', TONE.ok)),
 					],
-					{ size: '14' },
+					look('', { size: '14' }),
 				)
 			}
 		}
 
 		/* ---- dials ---- */
 		const D = `Dials: ${c.name || c.id}`
-		presets[`${k}_dial_volume`] = dial(D, 'Volume dial (±2 per detent)', `VOL\\n${name}\\n${v(`${k}_volume`)}`, {
+		const dialLook = (glyph) => look(glyph, { size: '7' })
+		presets[`${k}_dial_volume`] = dial(D, 'Volume dial (±2 per detent)', `VOL ${v(`${k}_volume`)}\\n${name}`, {
 			left: [act('comp_volume_nudge', { ...o, delta: -2 })],
 			right: [act('comp_volume_nudge', { ...o, delta: 2 })],
-		}, [], { size: '14' })
-		presets[`${k}_dial_opacity`] = dial(D, 'Opacity dial (±2 per detent)', `OPACITY\\n${name}\\n${v(`${k}_opacity`)}`, {
+		}, [], dialLook('speaker'))
+		presets[`${k}_dial_opacity`] = dial(D, 'Opacity dial (±2 per detent)', `OPACITY ${v(`${k}_opacity`)}\\n${name}`, {
 			left: [act('comp_opacity_nudge', { ...o, delta: -2 })],
 			right: [act('comp_opacity_nudge', { ...o, delta: 2 })],
-		}, [], { size: '14' })
-		presets[`${k}_dial_seek`] = dial(D, 'Seek dial (±1 s per detent, press = play/pause)', `SEEK\\n${name}\\n${v(`${k}_time`)}`, {
+		}, [], dialLook('knob'))
+		presets[`${k}_dial_seek`] = dial(D, 'Seek dial (±1 s per detent, press = play/pause)', `${v(`${k}_time`)}\\n${name}`, {
 			left: [act('comp_seek_relative', { ...o, delta: -1 })],
 			right: [act('comp_seek_relative', { ...o, delta: 1 })],
 			press: [act('comp_toggle', o)],
 		}, [
-			st('playing', { bgcolor: COLORS.green, color: COLORS.white }),
-			st('paused', { bgcolor: COLORS.amber, color: COLORS.black }),
-		], { size: '14' })
-		presets[`${k}_dial_cue`] = dial(D, 'Cue picker dial (turn to pick, press = GO)', `CUE ${v(`${k}_selected_cue_index`)}\\n${v(`${k}_selected_cue_name`)}\\nnow ${v(`${k}_cue_name`)}`, {
+			st('playing', lit('toggle', TONE.ok)),
+			st('paused', lit('toggle', TONE.warn)),
+		], dialLook('toggle'))
+		presets[`${k}_dial_cue`] = dial(D, 'Cue picker dial (turn to pick, press = GO)', `CUE ${v(`${k}_selected_cue_index`)} ${v(`${k}_selected_cue_name`)}\\nnow ${v(`${k}_cue_name`)}`, {
 			left: [act('cue_select_step', { ...o, step: -1 })],
 			right: [act('cue_select_step', { ...o, step: 1 })],
 			press: [act('cue_select_go', o)],
-		}, [fb('cue_selected', o, { bgcolor: COLORS.purple, color: COLORS.white })], { size: '14' })
+		}, [fb('cue_selected', o, lit('go', TONE.purple))], dialLook('go'))
 	}
 
-	presets.dial_master_volume = dial('Dials: engine', 'Master volume dial (±2 per detent)', `MASTER\\n${v('master_volume')}`, {
+	presets.dial_master_volume = dial('Dials: engine', 'Master volume dial (±2 per detent)', `MASTER ${v('master_volume')}`, {
 		left: [act('master_volume_nudge', { delta: -2 })],
 		right: [act('master_volume_nudge', { delta: 2 })],
-	}, [fb('audio_mute', {}, { bgcolor: COLORS.red, color: COLORS.white })], { size: '14' })
+	}, [fb('audio_mute', {}, solid('mute', EXA.errorFill))], look('speaker', { size: '7' }))
 
 	/* ------------------------------------------------- command buttons --- */
+	// The Control tab draws a command button in the accent: so does its key.
 	for (const b of cat.buttons || []) {
 		presets[`button_${varKey(b.id)}`] = button(
 			'Command buttons',
@@ -178,13 +204,13 @@ function getPresetDefinitions(self) {
 			literal(b.label),
 			[act('fire_button', { button: b.id, id: '' })],
 			[
-				fb('button_running', { button: b.id }, { bgcolor: COLORS.amber, color: COLORS.black }),
-				fb('button_failed', { button: b.id }, { bgcolor: COLORS.red, color: COLORS.white }),
+				fb('button_running', { button: b.id }, lit('bolt', TONE.warn)),
+				fb('button_failed', { button: b.id }, solid('warning', EXA.errorFill)),
 			],
-			{ size: '14', bgcolor: COLORS.blue },
+			look('bolt', { glyphColor: EXA.accent, frame: EXA.accent }),
 		)
 	}
 	return presets
 }
 
-module.exports = { getPresetDefinitions }
+module.exports = { getPresetDefinitions, look, lit, solid, TONE }

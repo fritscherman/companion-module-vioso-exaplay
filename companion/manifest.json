@@ -4,13 +4,17 @@
 	"name": "vioso-exaplay",
 	"shortname": "exaplay",
 	"description": "VIOSO Exaplay 3 media server: transport, cue lists, command buttons, Stream Deck+ dials, show mode, blank and live status",
-	"version": "1.3.0",
+	"version": "2.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-vioso-exaplay.git",
 	"bugs": "https://github.com/bitfocus/companion-module-vioso-exaplay/issues",
 	"maintainers": [
 		{
 			"name": "VIOSO GmbH"
+		},
+		{
+			"name": "DRJKNICKEL",
+			"email": "jan-heuser@posteo.de"
 		}
 	],
 	"legacyIds": [],
